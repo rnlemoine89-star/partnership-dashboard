@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Partnership Scoring Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1f232c;
+    --border: #2a2f3a;
+    --text: #e7eaf0;
+    --muted: #8a93a3;
+    --accent: #ff8a3d;
+    --a: #25c685;
+    --b: #4aa3ff;
+    --c: #f5b400;
+    --d: #ff5d6c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    padding: 24px 32px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; }
+  header p { margin: 0; color: var(--muted); font-size: 13px; }
+  .container { padding: 20px 32px 60px; }
+
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .kpi {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .kpi .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  .kpi .value { font-size: 26px; font-weight: 600; margin-top: 4px; }
+  .kpi.a .value { color: var(--a); }
+  .kpi.b .value { color: var(--b); }
+  .kpi.c .value { color: var(--c); }
+  .kpi.d .value { color: var(--d); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .card h2 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card h2 .hint { color: var(--muted); font-size: 11px; font-weight: 400; }
+  .chart-wrap { position: relative; height: 360px; }
+  .chart-wrap.tall { height: 520px; }
+
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+    align-items: center;
+  }
+  .filters .group { display: flex; gap: 6px; align-items: center; }
+  .filters label { color: var(--muted); font-size: 12px; margin-right: 4px; }
+  .pill {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: all .15s;
+  }
+  .pill:hover { border-color: var(--accent); }
+  .pill.active { background: var(--accent); color: #1a1206; border-color: var(--accent); font-weight: 600; }
+  .pill.a.active { background: var(--a); border-color: var(--a); color: #052b1c; }
+  .pill.b.active { background: var(--b); border-color: var(--b); color: #021a33; }
+  .pill.c.active { background: var(--c); border-color: var(--c); color: #2a1f00; }
+  .pill.d.active { background: var(--d); border-color: var(--d); color: #2c0007; }
+  .pill.risklow.active { background: var(--a); border-color: var(--a); color: #052b1c; }
+  .pill.riskmed.active { background: var(--c); border-color: var(--c); color: #2a1f00; }
+  .pill.riskhigh.active { background: var(--d); border-color: var(--d); color: #2c0007; }
+  input.search {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    min-width: 220px;
+    outline: none;
+  }
+  input.search:focus { border-color: var(--accent); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead th {
+    text-align: left;
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  thead th:hover { color: var(--text); }
+  thead th .arrow { opacity: .4; margin-left: 3px; }
+  thead th.sorted .arrow { opacity: 1; color: var(--accent); }
+  tbody td {
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tbody tr { cursor: pointer; transition: background .1s; }
+  tbody tr:hover { background: var(--panel-2); }
+  tbody tr.selected { background: rgba(255,138,61,0.08); }
+  .priority {
+    display: inline-block;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    font-weight: 700;
+    text-align: center;
+    line-height: 24px;
+    font-size: 12px;
+  }
+  .priority.A { background: var(--a); color: #052b1c; }
+  .priority.B { background: var(--b); color: #021a33; }
+  .priority.C { background: var(--c); color: #2a1f00; }
+  .priority.D { background: var(--d); color: #2c0007; }
+  .score {
+    display: inline-block;
+    min-width: 22px;
+    padding: 2px 6px;
+    text-align: center;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 12px;
+  }
+  .score.s5 { background: rgba(37,198,133,.20); color: #4fe2a8; }
+  .score.s4 { background: rgba(74,163,255,.18); color: #7cbcff; }
+  .score.s3 { background: rgba(245,180,0,.18); color: #ffd14a; }
+  .score.s2 { background: rgba(255,93,108,.20); color: #ff8a96; }
+  .score.s1 { background: rgba(255,93,108,.30); color: #ff5d6c; }
+  .total {
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .note {
+    color: var(--muted);
+    font-size: 12px;
+    max-width: 380px;
+  }
+  .partner-name { font-weight: 600; }
+  .category-tag {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--panel-2);
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .3px;
+  }
+  .risk-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    white-space: nowrap;
+  }
+  .risk-badge.Low { background: rgba(37,198,133,.18); color: #4fe2a8; }
+  .risk-badge.Medium { background: rgba(245,180,0,.18); color: #ffd14a; }
+  .risk-badge.High { background: rgba(255,93,108,.22); color: #ff8a96; }
+  .risk-cell { background: rgba(255,255,255,0.015); }
+  .riskbars { margin-top: 10px; }
+  .riskbar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 11px; }
+  .riskbar-label { color: var(--muted); width: 130px; flex-shrink: 0; }
+  .riskbar-track { flex: 1; height: 8px; background: var(--panel-2); border-radius: 4px; overflow: hidden; }
+  .riskbar-fill { height: 100%; border-radius: 4px; }
+  .riskbar-val { width: 28px; text-align: right; font-weight: 600; color: var(--text); }
+
+  .activations-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 8px;
+  }
+  .activation {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .activation-title {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.3;
+  }
+  .activation-examples {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.55;
+    margin: 0;
+    padding-left: 16px;
+  }
+  .activation-examples li { margin: 1px 0; }
+  .activation-note {
+    font-size: 10.5px;
+    color: #ffd14a;
+    font-style: italic;
+    margin-top: -2px;
+  }
+  .activation-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: auto;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border);
+    align-items: center;
+  }
+  .partner-chip {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(74,163,255,0.12);
+    color: #7cbcff;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+    border: 1px solid transparent;
+  }
+  .partner-chip:hover { background: rgba(74,163,255,0.28); transform: translateY(-1px); }
+  .partner-chip.cofidis {
+    background: rgba(255,138,61,0.12);
+    color: var(--accent);
+    cursor: default;
+    border-color: rgba(255,138,61,0.3);
+  }
+  .partner-chip.cofidis:hover { transform: none; background: rgba(255,138,61,0.12); }
+  .partner-chip.external {
+    background: rgba(138,147,163,0.10);
+    color: var(--muted);
+    cursor: default;
+  }
+  .partner-chip.external:hover { transform: none; background: rgba(138,147,163,0.10); }
+  .risk-tag {
+    margin-left: auto;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 700;
+    letter-spacing: .3px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .risk-tag.Low { background: rgba(37,198,133,.18); color: #4fe2a8; }
+  .risk-tag.Medium { background: rgba(245,180,0,.18); color: #ffd14a; }
+  .risk-tag.High { background: rgba(255,93,108,.22); color: #ff8a96; }
+  .guardrail-strip {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-top: 14px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .guardrail-strip strong { color: var(--text); }
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 30px;
+    font-size: 13px;
+  }
+  .row-flex { display: flex; gap: 16px; align-items: stretch; flex-wrap: wrap; }
+  .selected-info {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 8px;
+    font-style: italic;
+  }
+  @media (max-width: 1100px) {
+    .kpis { grid-template-columns: repeat(4, 1fr); }
+    .grid { grid-template-columns: 1fr; }
+    .activations-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .activations-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Partnership Scoring Dashboard</h1>
+  <p>19 partners across 6 opportunity dimensions (Total /30) plus a Cofidis risk overlay — Regulatory compliance &amp; Data/consent (Compliance &amp; Data /10). Opportunity ranking is unchanged; risk is layered on top. Click any bar, point or row to inspect a partner.</p>
+</header>
+
+<div class="container">
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="filters">
+    <div class="group">
+      <label>Priority:</label>
+      <span class="pill active" data-filter="priority" data-value="all">All</span>
+      <span class="pill a" data-filter="priority" data-value="A">A</span>
+      <span class="pill b" data-filter="priority" data-value="B">B</span>
+      <span class="pill c" data-filter="priority" data-value="C">C</span>
+      <span class="pill d" data-filter="priority" data-value="D">D</span>
+    </div>
+    <div class="group">
+      <label>Cofidis risk:</label>
+      <span class="pill active" data-filter="risk" data-value="all">All</span>
+      <span class="pill risklow" data-filter="risk" data-value="Low">Low</span>
+      <span class="pill riskmed" data-filter="risk" data-value="Medium">Medium</span>
+      <span class="pill riskhigh" data-filter="risk" data-value="High">High</span>
+    </div>
+    <div class="group" id="catFilter">
+      <label>Category:</label>
+    </div>
+    <input type="text" class="search" id="search" placeholder="Search partner or note..." />
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Total score by partner <span class="hint">click a bar to inspect</span></h2>
+      <div class="chart-wrap tall"><canvas id="barChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Profile: <span id="selectedPartner" style="color:var(--accent);">—</span></h2>
+      <div class="chart-wrap" style="height:300px;"><canvas id="radarChart"></canvas></div>
+      <div class="riskbars" id="riskBars"></div>
+      <div class="selected-info" id="selectedNote"></div>
+      <div class="selected-info" id="selectedRiskNote" style="font-style:normal;color:var(--text);"></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Opportunity vs. Cofidis risk <span class="hint">Total /30 vs. Compliance &amp; Data /10 — click a point</span></h2>
+      <div class="chart-wrap tall"><canvas id="quadChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Partners by risk band</h2>
+      <div class="chart-wrap"><canvas id="riskChart"></canvas></div>
+      <div class="selected-info" style="font-style:normal;">
+        Risk band = Regulatory compliance + Data/consent (each /5).
+        <span style="color:#4fe2a8;">Low 8&ndash;10</span> ·
+        <span style="color:#ffd14a;">Medium 5&ndash;7</span> ·
+        <span style="color:#ff8a96;">High &le;4</span>. Scores are inferred estimates.
+      </div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Average score by dimension <span class="hint">opportunity + risk factors</span></h2>
+      <div class="chart-wrap"><canvas id="dimChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Partners by category</h2>
+      <div class="chart-wrap"><canvas id="catChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px;">
+    <h2>Brand awareness activations for Cofidis <span class="hint">responsible-use playbook · click a partner chip to inspect</span></h2>
+    <div id="activationsGrid" class="activations-grid"></div>
+    <div class="guardrail-strip">
+      <strong>Cross-cutting guardrails (apply to every activation):</strong>
+      Awareness creative carries a brand &amp; education message, not a "borrow now" push · TAEG / representative-example disclosures wherever a product is named · no institutional partner made to look like it endorses credit · amplification channels used for reach, not data capture · lead capture only on consented surfaces under a DPA · responsible-lending framing review before creative ships.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Partner table <span class="hint" id="rowCount"></span></h2>
+    <div style="overflow-x:auto;">
+      <table id="dataTable">
+        <thead>
+          <tr>
+            <th data-sort="priority">Pri.<span class="arrow">↕</span></th>
+            <th data-sort="partner">Partner<span class="arrow">↕</span></th>
+            <th data-sort="category">Category<span class="arrow">↕</span></th>
+            <th data-sort="audience" title="Audience fit">Aud.<span class="arrow">↕</span></th>
+            <th data-sort="need" title="Need fit">Need<span class="arrow">↕</span></th>
+            <th data-sort="brand" title="Brand fit">Brand<span class="arrow">↕</span></th>
+            <th data-sort="conversion" title="Conversion fit">Conv.<span class="arrow">↕</span></th>
+            <th data-sort="operational" title="Operational fit">Ops<span class="arrow">↕</span></th>
+            <th data-sort="scalability" title="Content scalability">Scale<span class="arrow">↕</span></th>
+            <th data-sort="total" class="sorted">Total<span class="arrow">↓</span></th>
+            <th data-sort="regulatory" title="Regulatory compliance fit (inferred, 1-5)" class="risk-cell">Reg.<span class="arrow">↕</span></th>
+            <th data-sort="dataConsent" title="Data &amp; consent fit (inferred, 1-5)" class="risk-cell">Data<span class="arrow">↕</span></th>
+            <th data-sort="riskScore" title="Compliance &amp; Data score /10 and risk band" class="risk-cell">Risk<span class="arrow">↕</span></th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// regulatory & dataConsent are INFERRED 1-5 scores (5 = cleanest / lowest risk for Cofidis),
+// estimated from each partner's category, channel type and the original evaluation notes.
+const DATA = [
+  {partner:"All4cycling",category:"Context",audience:5,need:5,brand:4,conversion:5,operational:4,scalability:5,regulatory:4,dataConsent:4,total:28,priority:"A",note:"Best spring cycling conversion partner: high-ticket purchase intent, clear Elena fit and easy product-to-credit messaging.",riskNote:"Retailer on a standard point-of-sale finance footing; first-party commerce data and tracked CTAs. Main control: TAEG / representative-example discipline on every product page."},
+  {partner:"Ekosport",category:"Context",audience:4,need:5,brand:4,conversion:5,operational:4,scalability:5,regulatory:4,dataConsent:4,total:27,priority:"A",note:"Strong autumn/winter conversion partner for expensive ski and snowboard equipment with scalable seasonal creative.",riskNote:"Outdoor retailer, well-trodden POS-finance path; commerce data and checkout funnel. Disclosure discipline on seasonal creative is the main control."},
+  {partner:"Freedome",category:"Context / distribution",audience:4,need:5,brand:4,conversion:5,operational:4,scalability:5,regulatory:3,dataConsent:4,total:27,priority:"A",note:"Excellent for lessons, courses and experiences; converts Elena's passion and travel needs into bookable project moments.",riskNote:"Financing experiences/courses is less standardised than financing products; booking-moment credit messaging needs careful framing. Booking platform has a clean transactional funnel."},
+  {partner:"Bikeitalia",category:"Distribution",audience:5,need:4,brand:4,conversion:5,operational:4,scalability:5,regulatory:3,dataConsent:4,total:27,priority:"A",note:"Strong Elena fit for cycling education and decision support; very suitable for DEM, guides and tracked CTAs.",riskNote:"Editorial/DEM partner not native to financial-promo rules, but built for tracked CTAs. Subscriber consent to receive credit offers must be confirmed in the DPA."},
+  {partner:"LOOK Cycle",category:"Credibility",audience:5,need:5,brand:5,conversion:4,operational:3,scalability:4,regulatory:3,dataConsent:3,total:26,priority:"B",note:"Strongest brand and cycling credibility signal, but may require more legal/commercial coordination than a media or retail partner.",riskNote:"Premium brand co-marketing needs legal sign-off and carries brand-conflict risk (already flagged in the original note). Not a data source; any co-branded lead capture needs its own DPA."},
+  {partner:"Hardloop",category:"Context",audience:4,need:5,brand:4,conversion:4,operational:4,scalability:5,regulatory:4,dataConsent:4,total:26,priority:"B",note:"Strong cross-season outdoor retail partner; useful for gear guides and AI-scaled product/category content.",riskNote:"Retailer with commerce data and checkout funnel; standard POS-finance compliance path. AI-scaled product content raises a disclosure-coverage QA need."},
+  {partner:"Cycloos",category:"Distribution",audience:4,need:4,brand:4,conversion:4,operational:5,scalability:5,regulatory:3,dataConsent:2,total:26,priority:"B",note:"Lean, fast newsletter activation for cycling audiences; commercially useful if audience data and tracking are available.",riskNote:"Original note is explicitly conditional on data and tracking being available. Newsletter-subscriber consent for financial offers is uncertain — the biggest data/consent flag in the A/B tier."},
+  {partner:"PADI",category:"Credibility",audience:4,need:5,brand:5,conversion:3,operational:3,scalability:4,regulatory:2,dataConsent:2,total:24,priority:"B",note:"Very strong for diving education and trust; conversion depends on access to local dive centers, CRM or landing-page traffic.",riskNote:"Safety/training certification body — associating it with 'dive on credit' is reputationally delicate and may hit endorsement restrictions. Data is fragmented across franchised dive centres with uncertain CRM access."},
+  {partner:"Komoot",category:"Credibility",audience:4,need:4,brand:4,conversion:3,operational:4,scalability:5,regulatory:3,dataConsent:3,total:24,priority:"B",note:"Strong planning and outdoor behavior fit; best as inspiration/challenge layer rather than the only conversion engine.",riskNote:"In-app financial promotion is subject to platform terms. Behavioural data exists but conversion tracking is weak and data-sharing for a credit funnel is uncertain."},
+  {partner:"Oberalp Group",category:"Credibility / context",audience:4,need:5,brand:5,conversion:3,operational:3,scalability:4,regulatory:3,dataConsent:3,total:24,priority:"B",note:"Strong premium mountain-sport credibility; conversion potential depends on retailer or brand commerce activation.",riskNote:"Brand house, not a direct data source — compliance and data both depend on which retailer/commerce activation is chosen. Legal coordination spans multiple brands."},
+  {partner:"PlanetMountain",category:"Distribution",audience:4,need:4,brand:5,conversion:3,operational:4,scalability:4,regulatory:3,dataConsent:3,total:24,priority:"B",note:"Excellent expert distribution for mountain sports; best for qualified editorial traffic rather than mass volume.",riskNote:"Specialist publisher; credit CTAs in editorial need disclosure discipline. Qualified editorial traffic is trackable but consent quality is moderate."},
+  {partner:"Will Media",category:"Distribution",audience:3,need:3,brand:4,conversion:4,operational:4,scalability:5,regulatory:3,dataConsent:3,total:23,priority:"C",note:"Good clarity and explainer fit, but audience is broader and less purchase-intent than category media or retailers.",riskNote:"Explainer format leaves room for proper disclosures, which helps compliance — but a broad audience widens credit-ad exposure. Standard media tracking and consent."},
+  {partner:"Bikenos",category:"Context",audience:3,need:4,brand:3,conversion:4,operational:4,scalability:4,regulatory:4,dataConsent:3,total:22,priority:"C",note:"Useful outdoor/cycling commerce context, but weaker brand premium and Elena affinity than All4cycling, Ekosport or Hardloop.",riskNote:"Retailer-like commerce context with a familiar POS-finance path; data posture is moderate and less developed than the larger retailers."},
+  {partner:"bici.PRO",category:"Distribution",audience:4,need:3,brand:4,conversion:3,operational:4,scalability:4,regulatory:3,dataConsent:3,total:22,priority:"C",note:"Strong cycling authority, but more editorial/pro audience than direct credit-intent conversion.",riskNote:"Authority editorial; credit CTAs need disclosure discipline. Editorial traffic is trackable with moderate consent quality."},
+  {partner:"Guide Alpine Italiane / CONAGAI",category:"Credibility",audience:4,need:4,brand:5,conversion:2,operational:3,scalability:3,regulatory:2,dataConsent:2,total:21,priority:"C",note:"Excellent trust and safety partner, but commercially weaker unless paired with Freedome, Hardloop or PlanetMountain.",riskNote:"Professional/institutional safety body — commercial credit association is delicate and subject to institutional endorsement rules. Membership data is not consented for financial marketing; slow."},
+  {partner:"Fanpage.it",category:"Distribution",audience:3,need:2,brand:3,conversion:4,operational:4,scalability:5,regulatory:2,dataConsent:3,total:21,priority:"C",note:"Strong reach and scalable assets, but lower sport/credit-intent fit; use only as amplification.",riskNote:"Mass-reach credit advertising to a low-intent audience is the highest regulatory-scrutiny scenario. Impression-based amplification limits data-sharing risk, but any leads carry poor consent quality."},
+  {partner:"Strava",category:"Distribution",audience:4,need:3,brand:4,conversion:3,operational:3,scalability:4,regulatory:2,dataConsent:2,total:21,priority:"C",note:"Strong sport community, but conversion and tracking feasibility may be less direct for a 1-month lead-gen pilot.",riskNote:"Platform terms may restrict financial promotions; the platform has a history of privacy sensitivity and API/data restrictions. Original note already flags weak tracking feasibility."},
+  {partner:"FISI",category:"Credibility",audience:3,need:4,brand:5,conversion:2,operational:2,scalability:3,regulatory:2,dataConsent:2,total:19,priority:"D",note:"Strong institutional fit for winter sports, but likely slower and less conversion-oriented for a short campaign.",riskNote:"National sports federation — credit association is institutionally delicate with slow approval cycles. Membership data is not consented for financial marketing."},
+  {partner:"CNC Media",category:"Distribution",audience:2,need:2,brand:3,conversion:3,operational:4,scalability:4,regulatory:2,dataConsent:3,total:18,priority:"D",note:"Operationally easy as a media amplifier, but too broad and less aligned with Elena's high-intent outdoor need.",riskNote:"Broad media amplification of a credit offer draws high regulatory scrutiny. Impression-based, so data-sharing risk is lower, but lead consent quality is poor."},
+];
+
+// Derived: combined Compliance & Data score (out of 10) and a risk band.
+DATA.forEach(d => {
+  d.riskScore = d.regulatory + d.dataConsent;
+  d.riskLevel = d.riskScore >= 8 ? "Low" : (d.riskScore >= 5 ? "Medium" : "High");
+});
+
+const DIMS = [
+  {key:"audience", label:"Audience fit"},
+  {key:"need", label:"Need fit"},
+  {key:"brand", label:"Brand fit"},
+  {key:"conversion", label:"Conversion fit"},
+  {key:"operational", label:"Operational fit"},
+  {key:"scalability", label:"Content scalability"},
+];
+
+// Risk-overlay dimensions (inferred). Higher = cleaner / lower risk for Cofidis.
+const RISK_DIMS = [
+  {key:"regulatory", label:"Regulatory compliance"},
+  {key:"dataConsent", label:"Data & consent"},
+];
+
+const PRIORITY_COLORS = { A:"#25c685", B:"#4aa3ff", C:"#f5b400", D:"#ff5d6c" };
+const RISK_COLORS = { Low:"#25c685", Medium:"#f5b400", High:"#ff5d6c" };
+
+let state = {
+  priority: "all",
+  category: "all",
+  risk: "all",
+  search: "",
+  sortKey: "total",
+  sortDir: "desc",
+  selected: DATA[0].partner,
+};
+
+// --- KPIs ---
+function renderKPIs() {
+  const counts = { A:0, B:0, C:0, D:0 };
+  const risk = { Low:0, Medium:0, High:0 };
+  DATA.forEach(d => { counts[d.priority]++; risk[d.riskLevel]++; });
+  const avg = (DATA.reduce((s,d)=>s+d.total,0)/DATA.length).toFixed(1);
+  const avgRisk = (DATA.reduce((s,d)=>s+d.riskScore,0)/DATA.length).toFixed(1);
+  const html = `
+    <div class="kpi"><div class="label">Partners</div><div class="value">${DATA.length}</div></div>
+    <div class="kpi a"><div class="label">A · Must do</div><div class="value">${counts.A}</div></div>
+    <div class="kpi b"><div class="label">B · Strong</div><div class="value">${counts.B}</div></div>
+    <div class="kpi c"><div class="label">C · Possible</div><div class="value">${counts.C}</div></div>
+    <div class="kpi d"><div class="label">D · Deprioritize</div><div class="value">${counts.D}</div></div>
+    <div class="kpi"><div class="label">Avg opportunity</div><div class="value">${avg}<span style="color:var(--muted);font-size:14px;">/30</span></div></div>
+    <div class="kpi"><div class="label">Avg compliance &amp; data</div><div class="value">${avgRisk}<span style="color:var(--muted);font-size:14px;">/10</span></div></div>
+    <div class="kpi d"><div class="label">High-risk partners</div><div class="value">${risk.High}</div></div>
+  `;
+  document.getElementById("kpis").innerHTML = html;
+}
+
+// --- Category filter ---
+function renderCatFilters() {
+  const cats = ["all", ...new Set(DATA.map(d=>d.category))];
+  const wrap = document.getElementById("catFilter");
+  cats.forEach(c => {
+    const pill = document.createElement("span");
+    pill.className = "pill" + (c==="all"?" active":"");
+    pill.dataset.filter = "category";
+    pill.dataset.value = c;
+    pill.textContent = c==="all" ? "All" : c;
+    wrap.appendChild(pill);
+  });
+}
+
+// --- Filtering ---
+function getFiltered() {
+  return DATA.filter(d => {
+    if (state.priority !== "all" && d.priority !== state.priority) return false;
+    if (state.category !== "all" && d.category !== state.category) return false;
+    if (state.risk !== "all" && d.riskLevel !== state.risk) return false;
+    if (state.search) {
+      const q = state.search.toLowerCase();
+      if (!d.partner.toLowerCase().includes(q) &&
+          !d.note.toLowerCase().includes(q) &&
+          !d.riskNote.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function getSorted(rows) {
+  const k = state.sortKey;
+  const dir = state.sortDir === "asc" ? 1 : -1;
+  return [...rows].sort((a,b) => {
+    const va = a[k], vb = b[k];
+    if (typeof va === "number") return (va - vb) * dir;
+    return String(va).localeCompare(String(vb)) * dir;
+  });
+}
+
+// --- Table ---
+function renderTable() {
+  const rows = getSorted(getFiltered());
+  document.getElementById("rowCount").textContent = `${rows.length} of ${DATA.length}`;
+  const body = document.getElementById("tableBody");
+  if (!rows.length) {
+    body.innerHTML = `<tr><td colspan="14" class="empty">No partners match the current filters.</td></tr>`;
+    return;
+  }
+  body.innerHTML = rows.map(d => `
+    <tr data-partner="${d.partner}" class="${d.partner===state.selected?'selected':''}">
+      <td><span class="priority ${d.priority}">${d.priority}</span></td>
+      <td class="partner-name">${d.partner}</td>
+      <td><span class="category-tag">${d.category}</span></td>
+      ${DIMS.map(dim => `<td><span class="score s${d[dim.key]}">${d[dim.key]}</span></td>`).join("")}
+      <td class="total">${d.total}<span style="color:var(--muted);font-weight:400;">/30</span></td>
+      <td class="risk-cell"><span class="score s${d.regulatory}">${d.regulatory}</span></td>
+      <td class="risk-cell"><span class="score s${d.dataConsent}">${d.dataConsent}</span></td>
+      <td class="risk-cell"><span class="risk-badge ${d.riskLevel}">${d.riskLevel} · ${d.riskScore}/10</span></td>
+      <td class="note">${d.note}<br><span style="color:var(--muted);">⚠ ${d.riskNote}</span></td>
+    </tr>
+  `).join("");
+
+  body.querySelectorAll("tr").forEach(tr => {
+    tr.addEventListener("click", () => {
+      state.selected = tr.dataset.partner;
+      renderAll();
+    });
+  });
+}
+
+// --- Sorting headers ---
+function bindSort() {
+  document.querySelectorAll("thead th[data-sort]").forEach(th => {
+    th.addEventListener("click", () => {
+      const k = th.dataset.sort;
+      if (state.sortKey === k) {
+        state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+      } else {
+        state.sortKey = k;
+        state.sortDir = (typeof DATA[0][k] === "number") ? "desc" : "asc";
+      }
+      document.querySelectorAll("thead th").forEach(t => {
+        t.classList.remove("sorted");
+        const a = t.querySelector(".arrow");
+        if (a) a.textContent = "↕";
+      });
+      th.classList.add("sorted");
+      th.querySelector(".arrow").textContent = state.sortDir === "asc" ? "↑" : "↓";
+      renderTable();
+    });
+  });
+}
+
+// --- Filter pill bindings ---
+function bindFilters() {
+  document.body.addEventListener("click", e => {
+    const pill = e.target.closest(".pill");
+    if (!pill) return;
+    const f = pill.dataset.filter;
+    const v = pill.dataset.value;
+    state[f] = v;
+    document.querySelectorAll(`.pill[data-filter="${f}"]`).forEach(p => p.classList.remove("active"));
+    pill.classList.add("active");
+    renderAll();
+  });
+  document.getElementById("search").addEventListener("input", e => {
+    state.search = e.target.value;
+    renderTable();
+    renderBar();
+    renderQuad();
+    renderRisk();
+    renderDim();
+  });
+}
+
+// --- Charts ---
+let barChart, radarChart, dimChart, catChart, quadChart, riskChart;
+
+function renderBar() {
+  const rows = [...getFiltered()].sort((a,b)=>a.total-b.total);
+  const ctx = document.getElementById("barChart").getContext("2d");
+  const data = {
+    labels: rows.map(r=>r.partner),
+    datasets: [{
+      label: "Total /30",
+      data: rows.map(r=>r.total),
+      backgroundColor: rows.map(r => r.partner===state.selected ? "#ff8a3d" : PRIORITY_COLORS[r.priority]),
+      borderRadius: 4,
+      borderWidth: 0,
+    }]
+  };
+  if (barChart) barChart.destroy();
+  barChart = new Chart(ctx, {
+    type: "bar",
+    data,
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            afterLabel: ctx => {
+              const r = rows[ctx.dataIndex];
+              return `Priority: ${r.priority} · ${r.category}`;
+            }
+          }
+        }
+      },
+      onClick: (evt, els) => {
+        if (!els.length) return;
+        state.selected = rows[els[0].index].partner;
+        renderAll();
+      },
+      scales: {
+        x: { max: 30, grid: { color: "#2a2f3a" }, ticks: { color: "#8a93a3" } },
+        y: { grid: { display: false }, ticks: { color: "#e7eaf0", font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+function renderRadar() {
+  const partner = DATA.find(d => d.partner === state.selected) || DATA[0];
+  document.getElementById("selectedPartner").textContent = partner.partner;
+  document.getElementById("selectedNote").textContent = `${partner.category} · Priority ${partner.priority} · Total ${partner.total}/30 — ${partner.note}`;
+  document.getElementById("selectedRiskNote").innerHTML =
+    `<strong style="color:${RISK_COLORS[partner.riskLevel]};">${partner.riskLevel} risk · ${partner.riskScore}/10 compliance &amp; data.</strong> ${partner.riskNote}`;
+
+  // Risk factor bars
+  document.getElementById("riskBars").innerHTML = RISK_DIMS.map(rd => {
+    const v = partner[rd.key];
+    const col = v >= 4 ? "#25c685" : (v >= 3 ? "#f5b400" : "#ff5d6c");
+    return `<div class="riskbar-row">
+      <span class="riskbar-label">${rd.label}</span>
+      <span class="riskbar-track"><span class="riskbar-fill" style="width:${v*20}%;background:${col};"></span></span>
+      <span class="riskbar-val">${v}/5</span>
+    </div>`;
+  }).join("");
+
+  const avg = DIMS.map(dim => DATA.reduce((s,d)=>s+d[dim.key],0)/DATA.length);
+
+  const ctx = document.getElementById("radarChart").getContext("2d");
+  if (radarChart) radarChart.destroy();
+  radarChart = new Chart(ctx, {
+    type: "radar",
+    data: {
+      labels: DIMS.map(d=>d.label),
+      datasets: [
+        {
+          label: partner.partner,
+          data: DIMS.map(d=>partner[d.key]),
+          backgroundColor: "rgba(255,138,61,0.25)",
+          borderColor: "#ff8a3d",
+          borderWidth: 2,
+          pointBackgroundColor: "#ff8a3d",
+          pointRadius: 4,
+        },
+        {
+          label: "Average (all partners)",
+          data: avg,
+          backgroundColor: "rgba(138,147,163,0.10)",
+          borderColor: "#8a93a3",
+          borderWidth: 1,
+          borderDash: [4,4],
+          pointRadius: 2,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: "#e7eaf0", font: { size: 11 } } } },
+      scales: {
+        r: {
+          min: 0, max: 5,
+          ticks: { stepSize: 1, color: "#8a93a3", backdropColor: "transparent" },
+          grid: { color: "#2a2f3a" },
+          angleLines: { color: "#2a2f3a" },
+          pointLabels: { color: "#e7eaf0", font: { size: 11 } }
+        }
+      }
+    }
+  });
+}
+
+function renderDim() {
+  const rows = getFiltered();
+  const allDims = [...DIMS, ...RISK_DIMS];
+  const avgs = allDims.map(dim => rows.length ? rows.reduce((s,d)=>s+d[dim.key],0)/rows.length : 0);
+  const ctx = document.getElementById("dimChart").getContext("2d");
+  if (dimChart) dimChart.destroy();
+  dimChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: allDims.map(d=>d.label),
+      datasets: [{
+        label: "Average score",
+        data: avgs,
+        backgroundColor: allDims.map((d,i) => i < DIMS.length ? "#4aa3ff" : "#ff8a3d"),
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            afterLabel: ctx => ctx.dataIndex < DIMS.length ? "Opportunity dimension" : "Cofidis risk factor (inferred)"
+          }
+        }
+      },
+      scales: {
+        y: { min: 0, max: 5, grid: { color: "#2a2f3a" }, ticks: { color: "#8a93a3" } },
+        x: { grid: { display: false }, ticks: { color: "#e7eaf0", font: { size: 9 }, maxRotation: 30, minRotation: 30 } }
+      }
+    }
+  });
+}
+
+// --- Quadrant scatter: opportunity vs. compliance & data risk ---
+const quadrantPlugin = {
+  id: "quadrantPlugin",
+  beforeDraw(chart) {
+    const { ctx, chartArea, scales } = chart;
+    if (!chartArea) return;
+    const xMid = scales.x.getPixelForValue(6.5);
+    const yMid = scales.y.getPixelForValue(23.5);
+    ctx.save();
+    ctx.strokeStyle = "#3a4150";
+    ctx.setLineDash([5,5]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(xMid, chartArea.top); ctx.lineTo(xMid, chartArea.bottom);
+    ctx.moveTo(chartArea.left, yMid); ctx.lineTo(chartArea.right, yMid);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = "11px -apple-system, sans-serif";
+    ctx.fillStyle = "#7a8294";
+    ctx.textBaseline = "top";
+    ctx.fillText("⚠ High opportunity · higher risk", chartArea.left + 8, chartArea.top + 6);
+    ctx.textAlign = "right";
+    ctx.fillText("✓ High opportunity · cleaner", chartArea.right - 8, chartArea.top + 6);
+    ctx.textBaseline = "bottom";
+    ctx.fillText("Lower opportunity · cleaner", chartArea.right - 8, chartArea.bottom - 6);
+    ctx.textAlign = "left";
+    ctx.fillText("Lower opportunity · higher risk", chartArea.left + 8, chartArea.bottom - 6);
+    ctx.restore();
+  }
+};
+
+function renderQuad() {
+  const rows = getFiltered();
+  const ctx = document.getElementById("quadChart").getContext("2d");
+  if (quadChart) quadChart.destroy();
+  quadChart = new Chart(ctx, {
+    type: "scatter",
+    data: {
+      datasets: [{
+        label: "Partners",
+        data: rows.map(r => ({ x: r.riskScore, y: r.total, partner: r.partner, priority: r.priority, riskLevel: r.riskLevel })),
+        backgroundColor: rows.map(r => r.partner === state.selected ? "#ff8a3d" : RISK_COLORS[r.riskLevel]),
+        borderColor: rows.map(r => r.partner === state.selected ? "#ffffff" : "transparent"),
+        borderWidth: rows.map(r => r.partner === state.selected ? 2 : 0),
+        pointRadius: rows.map(r => r.partner === state.selected ? 9 : 7),
+        pointHoverRadius: 11,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: c => {
+              const p = c.raw;
+              return `${p.partner} — Total ${p.y}/30 · Compliance & Data ${p.x}/10 (${p.riskLevel} risk, Priority ${p.priority})`;
+            }
+          }
+        }
+      },
+      onClick: (evt, els) => {
+        if (!els.length) return;
+        state.selected = quadChart.data.datasets[0].data[els[0].index].partner;
+        renderAll();
+      },
+      scales: {
+        x: {
+          min: 2, max: 10, title: { display: true, text: "Compliance & Data score /10  (higher = cleaner)", color: "#8a93a3", font: { size: 11 } },
+          grid: { color: "#2a2f3a" }, ticks: { color: "#8a93a3", stepSize: 1 }
+        },
+        y: {
+          min: 15, max: 30, title: { display: true, text: "Opportunity — Total /30", color: "#8a93a3", font: { size: 11 } },
+          grid: { color: "#2a2f3a" }, ticks: { color: "#8a93a3" }
+        }
+      }
+    },
+    plugins: [quadrantPlugin]
+  });
+}
+
+// --- Risk band doughnut ---
+function renderRisk() {
+  const rows = getFiltered();
+  const order = ["Low","Medium","High"];
+  const counts = { Low:0, Medium:0, High:0 };
+  rows.forEach(r => counts[r.riskLevel]++);
+  const ctx = document.getElementById("riskChart").getContext("2d");
+  if (riskChart) riskChart.destroy();
+  riskChart = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: order.map(o => `${o} risk`),
+      datasets: [{
+        data: order.map(o => counts[o]),
+        backgroundColor: order.map(o => RISK_COLORS[o]),
+        borderColor: "#171a21",
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "right", labels: { color: "#e7eaf0", font: { size: 11 }, padding: 10 } }
+      },
+      cutout: "55%"
+    }
+  });
+}
+
+function renderCat() {
+  const rows = getFiltered();
+  const counts = {};
+  rows.forEach(r => { counts[r.category] = (counts[r.category]||0) + 1; });
+  const labels = Object.keys(counts);
+  const ctx = document.getElementById("catChart").getContext("2d");
+  if (catChart) catChart.destroy();
+  catChart = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels,
+      datasets: [{
+        data: labels.map(l=>counts[l]),
+        backgroundColor: ["#ff8a3d","#4aa3ff","#25c685","#f5b400","#ff5d6c","#9d7cff"],
+        borderColor: "#171a21",
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "right", labels: { color: "#e7eaf0", font: { size: 11 }, padding: 10 } }
+      },
+      cutout: "55%"
+    }
+  });
+}
+
+function renderAll() {
+  renderTable();
+  renderBar();
+  renderRadar();
+  renderQuad();
+  renderRisk();
+  renderDim();
+  renderCat();
+}
+
+// --- Brand awareness activations panel ---
+const ACTIVATIONS = [
+  {
+    name: "Logo presence / co-branding",
+    examples: ['"Official financing partner" lockups', "Co-branded landing hubs", "Brand-halo placements"],
+    partners: ["LOOK Cycle", "Oberalp Group"],
+    external: ["Campagnolo"],
+    risk: "Medium"
+  },
+  {
+    name: "Educational content",
+    examples: ["Market trend reports", "Budgeting guides", "Seasonal buying guides", '"How to read a credit offer" explainers'],
+    partners: ["All4cycling", "Ekosport", "Hardloop", "Will Media"],
+    risk: "Low"
+  },
+  {
+    name: "Event &amp; community activations",
+    examples: ["Beneficenza giro in bici", "Speaking panels", "Event sponsorships", "Gear-planning workshops", "Safety-program sponsorship"],
+    partners: ["Guide Alpine Italiane / CONAGAI", "PADI", "FISI"],
+    risk: "Medium"
+  },
+  {
+    name: "Owned media",
+    examples: ["Financial podcast", "Content hub / blog", '"Plan your purchase" calculator', "First-party newsletter"],
+    cofidisOwned: true,
+    risk: "Low"
+  },
+  {
+    name: "Editorial &amp; native partnerships",
+    examples: ["Explainer articles", "Decision guides", "Sponsored deep-dives (disclosed)"],
+    partners: ["Will Media", "Bikeitalia", "PlanetMountain", "bici.PRO"],
+    risk: "Medium"
+  },
+  {
+    name: "Co-produced retailer content",
+    examples: ["Seasonal gear guides", "Co-branded landing hubs", "Product / category content"],
+    partners: ["All4cycling", "Ekosport", "Hardloop", "Bikenos", "Freedome"],
+    risk: "Low"
+  },
+  {
+    name: "Paid reach &amp; amplification",
+    examples: ["Awareness-objective paid social &amp; display", "Contextual programmatic", "Disclosed sponsored editorial", "Amplification of educational content"],
+    partners: ["Fanpage.it", "CNC Media"],
+    note: "Reach objective only — never lead-gen",
+    risk: "Medium"
+  },
+  {
+    name: "Community challenges &amp; inspiration",
+    examples: ["Route challenges", "Club / segment sponsorship", "Participation-led awareness"],
+    partners: ["Komoot", "Strava", "Bikeitalia"],
+    risk: "Medium"
+  },
+  {
+    name: "Earned media / PR",
+    examples: ["Responsible-financing thought leadership", "Partnership announcements", "Industry commentary"],
+    cofidisOwned: true,
+    risk: "Low"
+  }
+];
+
+function renderActivations() {
+  const wrap = document.getElementById("activationsGrid");
+  wrap.innerHTML = ACTIVATIONS.map(a => {
+    const partnerChips = (a.partners || []).map(p =>
+      `<span class="partner-chip" data-partner="${p}" title="Click to inspect ${p}">${p}</span>`
+    ).join("");
+    const externalChips = (a.external || []).map(p =>
+      `<span class="partner-chip external" title="Suggested external partner (not in matrix)">${p}</span>`
+    ).join("");
+    const cofidisChip = a.cofidisOwned
+      ? `<span class="partner-chip cofidis" title="Cofidis-owned channel">Cofidis-owned</span>` : "";
+    const note = a.note ? `<div class="activation-note">⚠ ${a.note}</div>` : "";
+    return `
+      <div class="activation">
+        <div class="activation-title">${a.name}</div>
+        <ul class="activation-examples">
+          ${a.examples.map(e => `<li>${e}</li>`).join("")}
+        </ul>
+        ${note}
+        <div class="activation-footer">
+          ${cofidisChip}${partnerChips}${externalChips}
+          <span class="risk-tag ${a.risk}">${a.risk} risk</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  wrap.querySelectorAll(".partner-chip[data-partner]").forEach(chip => {
+    chip.addEventListener("click", () => {
+      const p = chip.dataset.partner;
+      if (DATA.find(d => d.partner === p)) {
+        state.selected = p;
+        renderAll();
+        document.getElementById("selectedPartner").scrollIntoView({behavior:"smooth", block:"center"});
+      }
+    });
+  });
+}
+
+// init
+renderKPIs();
+renderCatFilters();
+bindSort();
+bindFilters();
+renderActivations();
+renderAll();
+</script>
+</body>
+</html>
